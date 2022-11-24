@@ -23,8 +23,8 @@ def mavenUrl = 'https://repo.maven.apache.org/maven2'
 def jblasUrl = 'org/jblas/jblas/1.2.5'
 def jblasJarName = 'jblas-1.2.5.jar'
 def jblasModuleName = 'org.jblas'
-def bundlesDir = file("${projectDir}/bundles")
-def libsDir = file("${projectDir}/libs")
+def bundlesDir = file("${project.projectDir}/bundles")
+def libsDir = file("${project.projectDir}/libs")
 
 def modulesDir = file("${project.buildDir}/modules")
 

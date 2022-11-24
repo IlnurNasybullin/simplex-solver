@@ -1,2 +1,2 @@
-rootProject.name = 'simplex-solver'
+include 'simplex'
 
