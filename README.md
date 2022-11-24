@@ -1,0 +1,1 @@
+The library [jblass](http://jblas.org/) is used for matrix calculation
