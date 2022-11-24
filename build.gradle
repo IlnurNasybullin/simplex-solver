@@ -108,13 +108,6 @@ allprojects {
         }
     }
 
-    jar {
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        from {
-            configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-        }
-    }
-
     dependencies {
         implementation files("$rootDir/libs/jblas-1.2.5.jar")
         testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
