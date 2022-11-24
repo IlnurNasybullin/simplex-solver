@@ -5,6 +5,9 @@ allprojects {
     version = '1.0.1'
 
     repositories {
+        flatDir {
+            dirs "$rootProject.rootDir/libs"
+        }
         mavenCentral()
     }
 
@@ -15,7 +18,98 @@ allprojects {
         options.encoding = 'UTF-8'
     }
 
+    def mavenUrl = 'https://repo.maven.apache.org/maven2'
+    def jblasUrl = 'org/jblas/jblas/1.2.5'
+    def jblasJarName = 'jblas-1.2.5.jar'
+    def jblasModuleName = 'org.jblas'
+    def bundlesDir = file("${rootProject.projectDir}/bundles")
+    def libsDir = file("${rootProject.projectDir}/libs")
+
+    def modulesDir = file("${rootProject.buildDir}/modules")
+
+    task dependencyModularization(group: 'build',
+            description: 'Modularize dependencies', type: Exec) {
+        if (new File(libsDir, jblasJarName).exists()) {
+            commandLine("cmd", "/c", "echo", "task", "'dependencyModularization'", "is", "executed")
+            return;
+        }
+
+        delete libsDir
+        delete modulesDir
+
+        libsDir.mkdirs()
+
+        def command = "curl ${mavenUrl}/${jblasUrl}/${jblasJarName} --output ${libsDir}/${jblasJarName}".toString()
+        def platformDepended = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows") ?
+                "cmd /c" :
+                "sh -c"
+
+        def fullCommand = platformDepended + command
+
+        // Download lib
+        commandLine fullCommand.split(" ")
+
+        doLast {
+            def javaHome = System.getenv('JAVA_HOME')
+            if (javaHome == null
+                    || javaHome.isEmpty()) {
+                throw new GradleException('JAVA_HOME is not set')
+            }
+
+            def jarFile = new File(libsDir, jblasJarName)
+            def compiledModuleDir = new File(modulesDir, jblasModuleName)
+            compiledModuleDir.mkdirs()
+
+            // compile module descriptor
+            exec {
+                workingDir modulesDir
+
+                commandLine(
+                        "${javaHome}/bin/javac",
+                        '-p', libsDir.absolutePath,
+                        '-d', compiledModuleDir.absolutePath,
+                        '--patch-module', "${jblasModuleName}=${jarFile.absolutePath}",
+                        new File(bundlesDir, "${jblasModuleName}/module-info.java").absolutePath
+                )
+
+                standardOutput = System.out
+                errorOutput = System.out
+            }
+
+            // update JAR
+            exec {
+                workingDir libsDir
+
+                commandLine(
+                        "${javaHome}/bin/jar",
+                        'uf',
+                        jarFile.absolutePath,
+                        '-C',
+                        compiledModuleDir.absolutePath,
+                        'module-info.class'
+                )
+
+                standardOutput = System.out
+                errorOutput = System.out
+            }
+        }
+    }
+
+    def moduleName = 'io.github.ilnurnasybullin.math.simplex'
+
+    compileJava {
+        dependsOn tasks.findByName('dependencyModularization')
+        inputs.property("moduleName", moduleName)
+        doFirst {
+            options.compilerArgs = [
+                    '--module-path', classpath.asPath,
+            ]
+            classpath = files()
+        }
+    }
+
     dependencies {
+        implementation files("$rootDir/libs/jblas-1.2.5.jar")
         testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
         testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
         testImplementation 'org.junit.jupiter:junit-jupiter-params:5.9.0'
