@@ -1,22 +1,8 @@
-plugins {
-    id 'java'
-}
-
-group 'io.github.ilnurnasybullin.math'
-version '1.0.0'
-
 repositories {
     flatDir {
         dirs 'libs'
     }
     mavenCentral()
-}
-
-sourceCompatibility = 11
-compileJava.options.encoding = 'UTF-8'
-
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
 }
 
 def mavenUrl = 'https://repo.maven.apache.org/maven2'
@@ -111,13 +97,4 @@ compileJava {
 
 dependencies {
     implementation files('libs/jblas-1.2.5.jar')
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
-    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.9.0'
-    testImplementation 'org.assertj:assertj-core:3.23.1'
-    testRuntimeOnly 'org.apiguardian:apiguardian-api:1.1.2'
-}
-
-test {
-    useJUnitPlatform()
 }
