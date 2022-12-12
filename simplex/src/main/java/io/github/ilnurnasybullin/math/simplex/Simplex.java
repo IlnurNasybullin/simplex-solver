@@ -4,8 +4,14 @@ import io.github.ilnurnasybullin.math.simplex.exception.*;
 import org.jblas.DoubleMatrix;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -310,6 +316,70 @@ public class Simplex implements Serializable {
         return createAnswer();
     }
 
+    public List<SimplexAnswer> findAlternativeSolutions() {
+        return findAlternativeSolutions(Runnable::run);
+    }
+
+    public List<SimplexAnswer> findAlternativeSolutions(Executor executor) {
+        if (!isSolved()) {
+            throw new SimplexStateException("The system hasn't yet solved!");
+        }
+
+        List<Integer> zeroNonBasicIndexes = findZeroNonBasicIndexes();
+        if (zeroNonBasicIndexes.isEmpty()) {
+            return List.of();
+        }
+
+        var tasks = zeroNonBasicIndexes.stream()
+                .map(this::findAlternativeSolutionByIndex)
+                .map(supplier -> CompletableFuture.supplyAsync(supplier, executor))
+                .toArray(CompletableFuture[]::new);
+
+        var alternativeSolutions = new ArrayList<SimplexAnswer>();
+        CompletableFuture.allOf(tasks);
+        for (@SuppressWarnings("unchecked")
+            CompletableFuture<SimplexAnswer> task: tasks) {
+            try {
+                var solution = task.get();
+                alternativeSolutions.add(solution);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return alternativeSolutions;
+    }
+
+    private List<Integer> findZeroNonBasicIndexes() {
+        DoubleMatrix vector = JordanGaussRow(artificialBasisIndex);
+        var zeroIndexes = new ArrayList<Integer>();
+
+        for (int i = 1; i < vector.length; i++) {
+            double value = vector.get(i);
+            if (isApproximateValue(value, 0d, EPSILON)) {
+                zeroIndexes.add(i);
+            }
+        }
+
+        Arrays.stream(bases)
+                .boxed()
+                .forEach(zeroIndexes::remove);
+
+        return zeroIndexes;
+    }
+
+    private Supplier<SimplexAnswer> findAlternativeSolutionByIndex(int zeroNonBasinIndex) {
+        return () -> {
+            Simplex copy = copy();
+            copy.recalculateAndChangeBasis(zeroNonBasinIndex);
+            return copy.createAnswer();
+        };
+    }
+
+    private double fx() {
+        return A.get(A.rows - 1, 0);
+    }
+
     /**
      * Создание объекта {@link SimplexAnswer}, возвращающегося в качестве ответа при решении/перевычислении задачи
      * линейного программирования (см. {@link #solve()}, {@link #changeB(double[])}, {@link #addConstraint(double[], Inequality, double)}).
@@ -317,7 +387,7 @@ public class Simplex implements Serializable {
      * заменяющейся переменной, значений переменных дополнительного и искусственого базисов
      */
     private SimplexAnswer createAnswer() {
-        double fx = A.get(A.rows - 1, 0);
+        double fx = fx();
         if (functionType == MAX) {
             fx = -fx;
         }
@@ -418,26 +488,33 @@ public class Simplex implements Serializable {
      */
     private void recalculatesA(int border) {
         Integer inputIndex;
-        Integer outputIndex;
 
         while (true) {
-            inputIndex = firstPositive(A.getColumnRange(A.rows - 1, 0, border));
+            inputIndex = firstPositive(JordanGaussRow(border));
             if (inputIndex == null) {
                 break;
             }
 
-            outputIndex = minThetaRowIndex(inputIndex);
-            if (outputIndex == null) {
-                if (functionType == MAX) {
-                    throw new UnlimitedFunctionMaximizeException("The function can be unlimited maximize!");
-                } else {
-                    throw new UnlimitedFunctionMinimizeException("The function can be unlimited minimize!");
-                }
-            }
-
-            recalculateA(inputIndex, outputIndex);
-            changeBases(inputIndex, outputIndex);
+            recalculateAndChangeBasis(inputIndex);
         }
+    }
+
+    private DoubleMatrix JordanGaussRow(int border) {
+        return A.getColumnRange(A.rows - 1, 0, border);
+    }
+
+    private void recalculateAndChangeBasis(int inputIndex) {
+        Integer outputIndex = minThetaRowIndex(inputIndex);
+        if (outputIndex == null) {
+            if (functionType == MAX) {
+                throw new UnlimitedFunctionMaximizeException("The function can be unlimited maximize!");
+            } else {
+                throw new UnlimitedFunctionMinimizeException("The function can be unlimited minimize!");
+            }
+        }
+
+        recalculateA(inputIndex, outputIndex);
+        changeBases(inputIndex, outputIndex);
     }
 
     private void changeBases(Integer inputIndex, Integer outputIndex) {
