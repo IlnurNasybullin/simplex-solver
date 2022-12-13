@@ -163,8 +163,8 @@ public class Simplex implements Serializable {
     private Simplex(double[][] A, double[] B, double[] C, FunctionType functionType, Inequality[] inequalities,
                     boolean[] normalizedX) {
         this.functionType = functionType;
-        this.inequalities = Arrays.copyOf(inequalities, inequalities.length);
-        this.normalizedX = Arrays.copyOf(normalizedX, normalizedX.length);
+        this.inequalities = inequalities;
+        this.normalizedX = normalizedX;
 
         this.A = new DoubleMatrix(A);
         this.B = new DoubleMatrix(B);
@@ -1069,15 +1069,32 @@ public class Simplex implements Serializable {
             validateMatrices();
             initializeNullValues();
             checkArrays();
-            copyArrays();
-            return new Simplex(A, B, C, functionType, inequalities, normalizedX);
+            return new Simplex(deepCopy(A), copy(B), copy(C), functionType, copy(inequalities), copy(normalizedX));
+        }
+
+        private static double[][] deepCopy(double[][] matrix) {
+            double[][] copy = new double[matrix.length][];
+            for (int i = 0; i < matrix.length; i++) {
+                copy[i] = Arrays.copyOf(matrix[i], matrix[i].length);
+            }
+
+            return copy;
+        }
+
+        private static double[] copy(double[] array) {
+            return Arrays.copyOf(array, array.length);
+        }
+
+        private static boolean[] copy(boolean[] array) {
+            return Arrays.copyOf(array, array.length);
+        }
+
+        private static <T> T[] copy(T[] array) {
+            return Arrays.copyOf(array, array.length);
         }
 
         private void copyArrays() {
-            double[][] A = new double[this.A.length][];
-            for (int i = 0; i < A.length; i++) {
-                A[i] = Arrays.copyOf(this.A[i], this.A[i].length);
-            }
+
 
             this.A = A;
 
