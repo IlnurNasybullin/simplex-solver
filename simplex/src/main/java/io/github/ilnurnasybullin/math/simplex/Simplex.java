@@ -163,8 +163,8 @@ public class Simplex implements Serializable {
     private Simplex(double[][] A, double[] B, double[] C, FunctionType functionType, Inequality[] inequalities,
                     boolean[] normalizedX) {
         this.functionType = functionType;
-        this.inequalities = inequalities;
-        this.normalizedX = normalizedX;
+        this.inequalities = Arrays.copyOf(inequalities, inequalities.length);
+        this.normalizedX = Arrays.copyOf(normalizedX, normalizedX.length);
 
         this.A = new DoubleMatrix(A);
         this.B = new DoubleMatrix(B);
