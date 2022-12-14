@@ -41,14 +41,16 @@ public class SimplexAlternativeSolutionsTest {
                 errorMessage(answer.X(), answers)
         );
 
-        List<SimplexAnswer> alternativeSolutions = simplex.findAlternativeSolutions();
+        List<Simplex> alternativeSolutions = simplex.findAlternativeSolutions();
         Assertions.assertEquals(alternativeSolutions.size(), answers.size());
 
         alternativeSolutions.stream()
+                .map(Simplex::solve)
                 .map(SimplexAnswer::fx)
                 .forEach(fx -> Assertions.assertEquals(expectedFx, fx, Simplex.EPSILON));
 
         alternativeSolutions.stream()
+                .map(Simplex::solve)
                 .map(SimplexAnswer::X)
                 .forEach(x -> Assertions.assertTrue(
                         removeArrayEquals(x, answers, Simplex.EPSILON),

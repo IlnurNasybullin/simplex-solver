@@ -316,11 +316,11 @@ public class Simplex implements Serializable {
         return createAnswer();
     }
 
-    public List<SimplexAnswer> findAlternativeSolutions() {
+    public List<Simplex> findAlternativeSolutions() {
         return findAlternativeSolutions(Runnable::run);
     }
 
-    public List<SimplexAnswer> findAlternativeSolutions(Executor executor) {
+    public List<Simplex> findAlternativeSolutions(Executor executor) {
         if (!isSolved()) {
             throw new SimplexStateException("The system hasn't yet solved!");
         }
@@ -335,10 +335,10 @@ public class Simplex implements Serializable {
                 .map(supplier -> CompletableFuture.supplyAsync(supplier, executor))
                 .toArray(CompletableFuture[]::new);
 
-        var alternativeSolutions = new ArrayList<SimplexAnswer>();
+        var alternativeSolutions = new ArrayList<Simplex>();
         CompletableFuture.allOf(tasks);
         for (@SuppressWarnings("unchecked")
-            CompletableFuture<SimplexAnswer> task: tasks) {
+            CompletableFuture<Simplex> task: tasks) {
             try {
                 var solution = task.get();
                 alternativeSolutions.add(solution);
@@ -368,11 +368,11 @@ public class Simplex implements Serializable {
         return zeroIndexes;
     }
 
-    private Supplier<SimplexAnswer> findAlternativeSolutionByIndex(int zeroNonBasinIndex) {
+    private Supplier<Simplex> findAlternativeSolutionByIndex(int zeroNonBasinIndex) {
         return () -> {
             Simplex copy = copy();
             copy.recalculateAndChangeBasis(zeroNonBasinIndex);
-            return copy.createAnswer();
+            return copy;
         };
     }
 
