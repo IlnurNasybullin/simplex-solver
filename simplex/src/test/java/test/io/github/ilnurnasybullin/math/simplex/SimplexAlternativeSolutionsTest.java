@@ -21,8 +21,9 @@ public class SimplexAlternativeSolutionsTest {
 
     @ParameterizedTest
     @MethodSource(value = {
-            "_1_Success_Data",
-            "_2_Success_Data"
+//            "_1_Success_Data",
+//            "_2_Success_Data",
+            "_3_Success_Data"
     })
     public void test_1_Success(double[][] A, double[] B, double[] C,
                                FunctionType functionType, Inequality[] inequalities,
@@ -36,6 +37,7 @@ public class SimplexAlternativeSolutionsTest {
                 .setFunctionType(functionType)
                 .build();
         SimplexAnswer answer = simplex.solve();
+        System.out.printf("ANSWER IS: %s%n", Arrays.toString(answer.X()));
         Assertions.assertEquals(expectedFx, answer.fx(), Simplex.EPSILON);
         Assertions.assertTrue(removeArrayEquals(answer.X(), answers, Simplex.EPSILON),
                 errorMessage(answer.X(), answers)
@@ -46,8 +48,11 @@ public class SimplexAlternativeSolutionsTest {
 
         alternativeSolutions.stream()
                 .map(Simplex::solve)
+                .peek(s -> System.out.printf("ANSWER IS: %s%n", Arrays.toString(s.X())))
                 .map(SimplexAnswer::fx)
-                .forEach(fx -> Assertions.assertEquals(expectedFx, fx, Simplex.EPSILON));
+                .forEach(fx -> {
+                    Assertions.assertEquals(expectedFx, fx, Simplex.EPSILON);
+                });
 
         alternativeSolutions.stream()
                 .map(Simplex::solve)
@@ -141,6 +146,35 @@ public class SimplexAlternativeSolutionsTest {
 
         return Stream.of(Arguments.of(
                 A, B, C, functionType, inequalities, List.of(X1, X2), fx
+        ));
+    }
+
+    public static Stream<Arguments> _3_Success_Data() {
+        double[][] A = {
+                {1, 1, 1, 0, 0, 0},
+                {1, 0, 0, 1, 1, 0},
+                {0, 1, 0, 1, 0, 1},
+                {0, 0, 1, 0, 1, 1},
+                {1, 1, 1, 1, 1, 1}
+        };
+        double[] B = {1, 1, 1, 1, 1};
+        var inequalities = new Inequality[]{Inequality.LQ, Inequality.LQ, Inequality.LQ, Inequality.LQ, Inequality.LQ};
+
+        // x + y -> MAX
+        double[] C = {1, 1, 1, 1, 1, 1};
+        var functionType = FunctionType.MAX;
+
+        double[] X1 = {1, 0, 0, 0, 0, 0};
+        double[] X2 = {0, 1, 0, 0, 0, 0};
+        double[] X3 = {0, 0, 1, 0, 0, 0};
+        double[] X4 = {0, 0, 0, 1, 0, 0};
+        double[] X5 = {0, 0, 0, 0, 1, 0};
+        double[] X6 = {0, 0, 0, 0, 0, 1};
+
+        double fx = 1;
+
+        return Stream.of(Arguments.of(
+                A, B, C, functionType, inequalities, List.of(X1, X2, X3, X4, X5, X6), fx
         ));
     }
 
