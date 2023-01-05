@@ -9,10 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,8 +18,8 @@ public class SimplexAlternativeSolutionsTest {
 
     @ParameterizedTest
     @MethodSource(value = {
-//            "_1_Success_Data",
-//            "_2_Success_Data",
+            "_1_Success_Data",
+            "_2_Success_Data",
             "_3_Success_Data"
     })
     public void test_1_Success(double[][] A, double[] B, double[] C,
@@ -40,15 +37,13 @@ public class SimplexAlternativeSolutionsTest {
         System.out.printf("ANSWER IS: %s%n", Arrays.toString(answer.X()));
         Assertions.assertEquals(expectedFx, answer.fx(), Simplex.EPSILON);
         Assertions.assertTrue(removeArrayEquals(answer.X(), answers, Simplex.EPSILON),
-                errorMessage(answer.X(), answers)
+                errorMessage(answer.X(), answers, expectedXAnswers)
         );
 
         List<Simplex> alternativeSolutions = simplex.findAlternativeSolutions();
-        Assertions.assertEquals(alternativeSolutions.size(), answers.size());
 
         alternativeSolutions.stream()
                 .map(Simplex::solve)
-                .peek(s -> System.out.printf("ANSWER IS: %s%n", Arrays.toString(s.X())))
                 .map(SimplexAnswer::fx)
                 .forEach(fx -> {
                     Assertions.assertEquals(expectedFx, fx, Simplex.EPSILON);
@@ -58,17 +53,24 @@ public class SimplexAlternativeSolutionsTest {
                 .map(Simplex::solve)
                 .map(SimplexAnswer::X)
                 .forEach(x -> Assertions.assertTrue(
-                        removeArrayEquals(x, answers, Simplex.EPSILON),
-                        errorMessage(x, answers)
+                        removeArrayEquals(x, answers, Simplex.EPSILON) || checkThatContains(x, expectedXAnswers, Simplex.EPSILON),
+                        errorMessage(x, answers, expectedXAnswers)
                 ));
 
         Assertions.assertTrue(answers.isEmpty());
     }
 
-    private Supplier<String> errorMessage(double[] array, Collection<double[]> arrays) {
+    private boolean checkThatContains(double[] checkingArray, List<double[]> expectedXAnswers, double epsilon) {
+        return expectedXAnswers.stream().anyMatch(array -> arrayEquals(checkingArray, array, epsilon));
+    }
+
+    private Supplier<String> errorMessage(double[] array, Collection<double[]> arrays1, Collection<double[]> arrays2) {
         return () -> String.format(
-                "Expected that collection of arrays %s contains array %s",
-                arrays.stream()
+                "Expected that collection of arrays %s or %s contains array %s",
+                arrays1.stream()
+                        .map(Arrays::toString)
+                        .collect(Collectors.joining(", ", "[", "]")),
+                arrays2.stream()
                         .map(Arrays::toString)
                         .collect(Collectors.joining(", ", "[", "]")),
                 Arrays.toString(array)

@@ -4,14 +4,7 @@ import io.github.ilnurnasybullin.math.simplex.exception.*;
 import org.jblas.DoubleMatrix;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.function.Supplier;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -317,37 +310,65 @@ public class Simplex implements Serializable {
     }
 
     public List<Simplex> findAlternativeSolutions() {
-        return findAlternativeSolutions(Runnable::run);
-    }
-
-    public List<Simplex> findAlternativeSolutions(Executor executor) {
         if (!isSolved()) {
-            throw new SimplexStateException("The system hasn't yet solved!");
+            throw new IllegalStateException("Simplex is not solved!");
         }
 
-        List<Integer> zeroNonBasicIndexes = findZeroNonBasicIndexes();
-        if (zeroNonBasicIndexes.isEmpty()) {
-            return List.of();
-        }
+        double fx = solve().fx();
 
-        var tasks = zeroNonBasicIndexes.stream()
-                .map(this::findAlternativeSolutionByIndex)
-                .map(supplier -> CompletableFuture.supplyAsync(supplier, executor))
-                .toArray(CompletableFuture[]::new);
+        Bases base = new Bases(this.bases);
+        Queue<SimplexWithBases> simplexesWithBases = new ArrayDeque<>();
+        simplexesWithBases.add(new SimplexWithBases(this, base));
+        Set<Bases> bases = new HashSet<>();
+        bases.add(base);
 
-        var alternativeSolutions = new ArrayList<Simplex>();
-        CompletableFuture.allOf(tasks);
-        for (@SuppressWarnings("unchecked")
-            CompletableFuture<Simplex> task: tasks) {
-            try {
-                var solution = task.get();
-                alternativeSolutions.add(solution);
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
+        List<Simplex> simplexes = new ArrayList<>();
+        while (!simplexesWithBases.isEmpty()) {
+            SimplexWithBases simplexWithBases = simplexesWithBases.remove();
+            Simplex simplex = simplexWithBases.simplex();
+            List<InputOutputBase> inputOutputBases = inputOutputBases(simplex);
+
+            base = simplexWithBases.bases();
+            for (InputOutputBase inputOutputBase: inputOutputBases) {
+                Bases newBase = base.replaceBase(inputOutputBase.inputBase(), simplex.bases[inputOutputBase.outputBaseIndex()]);
+                if (bases.contains(newBase)) {
+                    continue;
+                }
+
+                Simplex newSimplex = replaceBaseIndexes(simplex, inputOutputBase);
+                if (!isApproximateValue(newSimplex.solve().fx(), fx, EPSILON)) {
+                    continue;
+                }
+
+                simplexes.add(newSimplex);
+                bases.add(newBase);
+                simplexesWithBases.add(new SimplexWithBases(newSimplex, newBase));
             }
         }
 
-        return alternativeSolutions;
+        return simplexes;
+    }
+
+    private Simplex replaceBaseIndexes(Simplex simplex, InputOutputBase inputOutputBase) {
+        Simplex newSimplex = simplex.copy();
+        int inputIndex = inputOutputBase.inputBase();
+        int outputIndex = inputOutputBase.outputBaseIndex();
+        newSimplex.recalculateA(inputIndex, outputIndex);
+        newSimplex.changeBases(inputIndex, outputIndex);
+        return newSimplex;
+    }
+
+    private List<InputOutputBase> inputOutputBases(Simplex simplex) {
+        List<Integer> inputIndexes = simplex.findZeroNonBasicIndexes();
+        List<InputOutputBase> inputOutputBases = new ArrayList<>();
+        for (int inputBase: inputIndexes) {
+            List<Integer> outputIndexes = simplex.minThetaRowIndexes(inputBase);
+            outputIndexes.stream()
+                    .map(outputIndex -> new InputOutputBase(inputBase, outputIndex))
+                    .forEach(inputOutputBases::add);
+        }
+
+        return inputOutputBases;
     }
 
     private List<Integer> findZeroNonBasicIndexes() {
@@ -366,14 +387,6 @@ public class Simplex implements Serializable {
                 .forEach(zeroIndexes::remove);
 
         return zeroIndexes;
-    }
-
-    private Supplier<Simplex> findAlternativeSolutionByIndex(int zeroNonBasinIndex) {
-        return () -> {
-            Simplex copy = copy();
-            copy.recalculateAndChangeBasis(zeroNonBasinIndex);
-            return copy;
-        };
     }
 
     private double fx() {
@@ -548,9 +561,9 @@ public class Simplex implements Serializable {
      * {@link #recalculatesA(int) перевычислении матрицы} {@link #A})
      * @return
      */
-    private Integer minThetaRowIndex(int outputBasisColumnIndex) {
+    private Integer minThetaRowIndex(int inputBasisColumnIndex) {
         DoubleMatrix P_O = A.getRowRange(0, A.rows - 1, 0);
-        DoubleMatrix P_J = A.getRowRange(0, A.rows - 1, outputBasisColumnIndex);
+        DoubleMatrix P_J = A.getRowRange(0, A.rows - 1, inputBasisColumnIndex);
 
         double minTheta = Double.POSITIVE_INFINITY;
         Integer minIndex = null;
@@ -570,6 +583,36 @@ public class Simplex implements Serializable {
         }
 
         return minIndex;
+    }
+
+    private List<Integer> minThetaRowIndexes(int inputBasisColumnIndex) {
+        DoubleMatrix P_O = A.getRowRange(0, A.rows - 1, 0);
+        DoubleMatrix P_J = A.getRowRange(0, A.rows - 1, inputBasisColumnIndex);
+
+        double minTheta = Double.POSITIVE_INFINITY;
+        List<Integer> minIndexes = new ArrayList<>();
+
+        double theta;
+        for(int i = 0; i < A.rows - 1; i++) {
+            double a_ij = P_J.get(i);
+            double a_i0 = P_O.get(i);
+
+            if (!isApproximateValue(a_ij, 0d, EPSILON) && a_ij > 0) {
+                theta = a_i0 / a_ij;
+
+                if (theta == minTheta) {
+                    minIndexes.add(i);
+                }
+
+                if (theta < minTheta) {
+                    minTheta = theta;
+                    minIndexes.clear();
+                    minIndexes.add(i);
+                }
+            }
+        }
+
+        return minIndexes;
     }
 
     private Integer firstPositive(DoubleMatrix vector) {
@@ -1093,17 +1136,6 @@ public class Simplex implements Serializable {
             return Arrays.copyOf(array, array.length);
         }
 
-        private void copyArrays() {
-
-
-            this.A = A;
-
-            B = Arrays.copyOf(B, B.length);
-            C = Arrays.copyOf(C, C.length);
-            inequalities = Arrays.copyOf(inequalities, inequalities.length);
-            normalizedX = Arrays.copyOf(normalizedX, normalizedX.length);
-        }
-
         private void checkArrays() {
             if (inequalities.length != B.length) {
                 throw new SimplexDataException(
@@ -1195,6 +1227,86 @@ public class Simplex implements Serializable {
 
     public static FunctionType defaultFunctionType() {
         return MIN;
+    }
+
+    private static class Bases {
+
+        private final Set<Integer> bases;
+
+        public Bases(int[] bases) {
+            this(Arrays.stream(bases)
+                    .boxed()
+                    .collect(Collectors.toUnmodifiableSet()));
+        }
+
+        private Bases(Set<Integer> bases) {
+            this.bases = Set.copyOf(bases);
+        }
+
+        public Bases replaceBase(int inputBase, int outputBase) {
+            Set<Integer> copy = new HashSet<>(bases);
+            if (!copy.remove(outputBase)) {
+                throw new IllegalStateException(String.format("Bases %s is not contains base %d", bases, outputBase));
+            }
+
+            if (!copy.add(inputBase)) {
+                throw new IllegalStateException(String.format("Bases %s is already contained base %d", bases, inputBase));
+            }
+
+            return new Bases(copy);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Bases other = (Bases) o;
+            return Objects.equals(bases, other.bases);
+        }
+
+        @Override
+        public int hashCode() {
+            return bases.hashCode();
+        }
+    }
+
+    private static class SimplexWithBases {
+
+        private final Simplex simplex;
+        private final Bases bases;
+
+        private SimplexWithBases(Simplex simplex, Bases bases) {
+            this.simplex = simplex;
+            this.bases = bases;
+        }
+
+        public Simplex simplex() {
+            return simplex;
+        }
+
+        public Bases bases() {
+            return bases;
+        }
+    }
+
+    private static class InputOutputBase {
+
+        private final int inputBase;
+        private final int outputBaseIndex;
+
+        private InputOutputBase(int inputBase, int outputBaseIndex) {
+            this.inputBase = inputBase;
+            this.outputBaseIndex = outputBaseIndex;
+        }
+
+        public int inputBase() {
+            return inputBase;
+        }
+
+        public int outputBaseIndex() {
+            return outputBaseIndex;
+        }
+
     }
 
 }

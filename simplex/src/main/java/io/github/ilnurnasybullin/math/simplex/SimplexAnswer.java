@@ -1,42 +1,22 @@
 package io.github.ilnurnasybullin.math.simplex;
 
-import java.io.Serializable;
+import java.util.Arrays;
 
-public class SimplexAnswer implements Serializable {
+public class SimplexAnswer {
 
-    private double[] X;
-    private double fx;
-
-    public SimplexAnswer() {}
+    private final double[] X;
+    private final double fx;
 
     public SimplexAnswer(double[] X, double fx) {
         this.X = X;
         this.fx = fx;
     }
 
-    /** Alias for {@link #getX()} */
     public double[] X() {
-        return X;
+        return Arrays.copyOf(X, X.length);
     }
 
-    /** Alias for {@link #getFx()}  */
     public double fx() {
         return fx;
-    }
-
-    public double[] getX() {
-        return X;
-    }
-
-    public double getFx() {
-        return fx;
-    }
-
-    public void setX(double[] x) {
-        X = x;
-    }
-
-    public void setFx(double fx) {
-        this.fx = fx;
     }
 }
