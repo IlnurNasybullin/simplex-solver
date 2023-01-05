@@ -27,7 +27,7 @@ import static org.jblas.DoubleMatrix.concatVertically;
  *     для копирования внутренних полей объекта в новый объект</li>
  * </ol>
  */
-public class Simplex implements Serializable {
+public class Simplex {
 
     private static final long versionUID = -8213458154269956034L;
 
@@ -292,6 +292,10 @@ public class Simplex implements Serializable {
             C = concatHorizontally(C, DoubleMatrix.scalar(c_n));
             A = concatHorizontally(A, A_n);
         }
+    }
+
+    public FunctionType functionType() {
+        return functionType;
     }
 
     /**
