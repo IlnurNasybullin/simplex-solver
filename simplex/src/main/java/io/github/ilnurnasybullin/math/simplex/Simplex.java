@@ -337,6 +337,7 @@ public class Simplex {
             SimplexWithBases simplexWithBases = simplexesWithBases.remove();
             Simplex simplex = simplexWithBases.simplex();
             List<InputOutputBase> inputOutputBases = inputOutputBases(simplex);
+            System.out.printf("INPUT-OUTPUT BASES is %s%n", inputOutputBases);
 
             base = simplexWithBases.bases();
             for (InputOutputBase inputOutputBase: inputOutputBases) {
@@ -349,6 +350,8 @@ public class Simplex {
 
                 simplexes.add(newSimplex);
                 bases.add(newBase);
+                System.out.printf("NEW BASE is %s%n", newBase);
+                System.out.printf("BASES COUNT is %d%n", bases.size());
                 simplexesWithBases.add(new SimplexWithBases(newSimplex, newBase));
             }
         }
@@ -1275,6 +1278,11 @@ public class Simplex {
         public int hashCode() {
             return bases.hashCode();
         }
+
+        @Override
+        public String toString() {
+            return bases.toString();
+        }
     }
 
     private static class SimplexWithBases {
@@ -1314,6 +1322,10 @@ public class Simplex {
             return outputBaseIndex;
         }
 
+        @Override
+        public String toString() {
+            return String.format("%d -> %d (index)", inputBase, outputBaseIndex);
+        }
     }
 
 }
