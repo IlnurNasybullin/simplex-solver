@@ -314,8 +314,6 @@ public class Simplex implements Serializable {
             throw new IllegalStateException("Simplex is not solved!");
         }
 
-        double fx = solve().fx();
-
         Bases base = new Bases(this.bases);
         Queue<SimplexWithBases> simplexesWithBases = new ArrayDeque<>();
         simplexesWithBases.add(new SimplexWithBases(this, base));
@@ -336,9 +334,6 @@ public class Simplex implements Serializable {
                 }
 
                 Simplex newSimplex = replaceBaseIndexes(simplex, inputOutputBase);
-                if (!isApproximateValue(newSimplex.solve().fx(), fx, EPSILON)) {
-                    continue;
-                }
 
                 simplexes.add(newSimplex);
                 bases.add(newBase);
