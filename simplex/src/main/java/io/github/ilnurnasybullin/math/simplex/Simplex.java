@@ -648,7 +648,7 @@ public class Simplex {
         copy.C = C.dup();
         copy.C_i = C_i.dup();
 
-        copy.bases = Arrays.copyOf(bases, bases.length);
+        copy.bases = bases == null ? null : Arrays.copyOf(bases, bases.length);
         copy.normalizedX = Arrays.copyOf(normalizedX, normalizedX.length);
         copy.inequalities = Arrays.copyOf(inequalities, inequalities.length);
 
