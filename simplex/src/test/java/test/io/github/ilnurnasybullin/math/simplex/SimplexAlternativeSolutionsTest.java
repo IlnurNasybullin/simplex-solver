@@ -34,7 +34,6 @@ public class SimplexAlternativeSolutionsTest {
                 .setFunctionType(functionType)
                 .build();
         SimplexAnswer answer = simplex.solve();
-        System.out.printf("ANSWER IS: %s%n", Arrays.toString(answer.X()));
         Assertions.assertEquals(expectedFx, answer.fx(), Simplex.EPSILON);
         Assertions.assertTrue(removeArrayEquals(answer.X(), answers, Simplex.EPSILON),
                 errorMessage(answer.X(), answers, expectedXAnswers)
@@ -45,9 +44,7 @@ public class SimplexAlternativeSolutionsTest {
         alternativeSolutions.stream()
                 .map(Simplex::solve)
                 .map(SimplexAnswer::fx)
-                .forEach(fx -> {
-                    Assertions.assertEquals(expectedFx, fx, Simplex.EPSILON);
-                });
+                .forEach(fx -> Assertions.assertEquals(expectedFx, fx, Simplex.EPSILON));
 
         alternativeSolutions.stream()
                 .map(Simplex::solve)

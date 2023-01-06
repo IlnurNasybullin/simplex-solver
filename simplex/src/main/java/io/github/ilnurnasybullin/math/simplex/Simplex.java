@@ -29,8 +29,6 @@ import static org.jblas.DoubleMatrix.concatVertically;
  */
 public class Simplex {
 
-    private static final long versionUID = -8213458154269956034L;
-
     /**
      * Константа, используемая в качестве &#949; для сравнения двух чисел с плавающей точкой. Гарантируется, что с
      * точностью до &#949; решение (значение целевой функции и значения переменных x) будет правильным
@@ -84,7 +82,7 @@ public class Simplex {
 
     /**
      * Вектор-строка коэффициентов целевой функции. Изначально содержит лишь m коэффициентов, стоящих перед переменными
-     * x, однако, в процессе канонизации задачи, с изменением матрицы {@link #A} вектор-строка {@link #C} также будет
+     * x, однако, в процессе канонизации задачи, с изменением матрицы {@link #A} вектор-строка также будет
      * меняться - добавляться соответствующие переменные (0) перед неизвестными x
      * @see #canonize()
      */
@@ -225,14 +223,14 @@ public class Simplex {
         dopBasisIndex = C.length + 1;
         double[] dopBasisDiagonals = new double[B.length];
         for (int i = 0; i < inequalities.length; i++) {
-            dopBasisDiagonals[i] = getInequalityCoeff(inequalities[i]);
+            dopBasisDiagonals[i] = getInequalityCoefficients(inequalities[i]);
         }
 
         C = concatHorizontally(C, DoubleMatrix.zeros(1, B.length));
         A = concatHorizontally(A, DoubleMatrix.diag(new DoubleMatrix(dopBasisDiagonals)));
     }
 
-    private double getInequalityCoeff(Inequality inequality) {
+    private double getInequalityCoefficients(Inequality inequality) {
         if (inequality == GE || inequality == GR) {
             return -1;
         }
@@ -321,6 +319,11 @@ public class Simplex {
         return createAnswer();
     }
 
+    /**
+     * Finding all alternative solutions by replacing bases with zero values columns
+     * <b>WARNING: It can be real difficult complex computational task, recommended for using in separate thread!</b>
+     * @implNote In future versions calculations can be multithreading
+     */
     public List<Simplex> findAlternativeSolutions() {
         if (!isSolved()) {
             throw new IllegalStateException("Simplex is not solved!");
@@ -337,7 +340,6 @@ public class Simplex {
             SimplexWithBases simplexWithBases = simplexesWithBases.remove();
             Simplex simplex = simplexWithBases.simplex();
             List<InputOutputBase> inputOutputBases = inputOutputBases(simplex);
-            System.out.printf("INPUT-OUTPUT BASES is %s%n", inputOutputBases);
 
             base = simplexWithBases.bases();
             for (InputOutputBase inputOutputBase: inputOutputBases) {
@@ -350,8 +352,6 @@ public class Simplex {
 
                 simplexes.add(newSimplex);
                 bases.add(newBase);
-                System.out.printf("NEW BASE is %s%n", newBase);
-                System.out.printf("BASES COUNT is %d%n", bases.size());
                 simplexesWithBases.add(new SimplexWithBases(newSimplex, newBase));
             }
         }
@@ -569,7 +569,6 @@ public class Simplex {
     /**
      * Нахождение индекса входящего базиса (для прямой задачи линейного программирования, применяется в процессе
      * {@link #recalculatesA(int) перевычислении матрицы} {@link #A})
-     * @return
      */
     private Integer minThetaRowIndex(int inputBasisColumnIndex) {
         DoubleMatrix P_O = A.getRowRange(0, A.rows - 1, 0);
@@ -671,7 +670,7 @@ public class Simplex {
     /**
      * Замена значения правой части ограничения с перевычислением результата. Практически тоже самое, что и
      * {@link #changeB(double[])}, но вместо всех правых частей ограничений заменяется лишь одно
-     * @param index - индекс значения в векторе {@link #changeB(int, double)}
+     * @param index - индекс значения в векторе
      * @param bi - новое значение ограничения
      * @see #changeB(double[])
      */
@@ -978,7 +977,7 @@ public class Simplex {
         }
 
         DoubleMatrix dopBasisRow = concatHorizontally(DoubleMatrix.zeros(1, A.rows - 1),
-                DoubleMatrix.scalar(getInequalityCoeff(inequality)));
+                DoubleMatrix.scalar(getInequalityCoefficients(inequality)));
 
         DoubleMatrix artificialBasisRow = concatHorizontally(DoubleMatrix.zeros(1, A.rows - 1),
                 DoubleMatrix.scalar(1));
